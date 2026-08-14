@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component>
+  <name>org.freedesktop.IBus.Lisle</name>
+  <description>Cole Sebeol and Colemak input method</description>
+  <exec>@EXECUTABLE@ --ibus</exec>
+  <version>@VERSION@</version>
+  <author>Lisle contributors</author>
+  <license>MIT</license>
+  <homepage>https://github.com/song/lisle</homepage>
+  <textdomain>lisle</textdomain>
+  <engines>
+    <engine>
+      <name>lisle</name>
+      <language>ko</language>
+      <license>MIT</license>
+      <author>Lisle contributors</author>
+      <layout>us</layout>
+      <longname>Lisle</longname>
+      <description>Cole Sebeol Hangul and Colemak Roman input</description>
+      <icon>@ICON@</icon>
+      <symbol>리</symbol>
+      <rank>80</rank>
+    </engine>
+  </engines>
+</component>

@@ -1,0 +1,58 @@
+# NOTICE
+
+Except where otherwise noted, this repository is distributed under the MIT
+License; see `LICENSE`.
+
+## Hisle icon
+
+`data/lisle.svg` is copied from
+`../hisle/tools/icons/HisleInputSource.svg` at Hisle revision
+`3b6d54e600abba50d7e8972afcc1fd55e3328381`:
+
+https://github.com/hooreique/hisle/blob/3b6d54e600abba50d7e8972afcc1fd55e3328381/tools/icons/HisleInputSource.svg
+
+The copied icon is distributed under the following license:
+
+```text
+MIT License
+
+Copyright (c) 2026 hisle contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## Cole Sebeol specification
+
+The Cole Sebeol key map is an independent transcription of the Gong Byung-woo
+Sebeolsik Final layout. Lisle's project-specific behavior is defined by
+`docs/spec.md`.
+
+The libhangul project (LGPL 2.1) was consulted by the Hisle reference project
+for Unicode Hangul values, layout data, and behavior comparison. Lisle does not
+vendor or link libhangul code.
+
+Lisle's Hangul syllable composition follows the algorithmic composition model
+specified by the Unicode Standard.
+
+## Development references
+
+The MIT-licensed Hisle project was used as the behavioral reference. IBus,
+GNOME Shell, Mutter, Chromium, and zbus source code and documentation were
+consulted for protocol behavior. Lisle does not vendor code from those
+projects.

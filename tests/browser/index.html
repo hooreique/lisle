@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lisle Chromium IME fixture</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: ui-monospace, "Noto Sans Mono", monospace;
+      }
+      body {
+        margin: 0 auto;
+        max-width: 72rem;
+        padding: 2rem;
+      }
+      main {
+        display: grid;
+        gap: 1.25rem;
+        grid-template-columns: minmax(18rem, 1fr) minmax(20rem, 1.3fr);
+      }
+      section {
+        border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+        border-radius: 0.5rem;
+        padding: 1rem;
+      }
+      .ime-target {
+        box-sizing: border-box;
+        display: block;
+        font: inherit;
+        margin: 0.5rem 0 1rem;
+        min-height: 4rem;
+        padding: 0.75rem;
+        width: 100%;
+      }
+      #events {
+        font-size: 0.75rem;
+        margin: 0;
+        max-height: 42rem;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+      button {
+        font: inherit;
+        margin-right: 0.5rem;
+        padding: 0.45rem 0.8rem;
+      }
+      @media (max-width: 52rem) {
+        body { padding: 1rem; }
+        main { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Lisle Chromium IME fixture</h1>
+    <p>Only physical keyboard input counts. DevTools, CDP, and synthetic DOM events bypass IBus.</p>
+    <main>
+      <section>
+        <label for="textarea">Textarea</label>
+        <textarea id="textarea" class="ime-target">foo bar</textarea>
+
+        <label for="input">Single-line input</label>
+        <input id="input" class="ime-target" value="foo bar">
+
+        <label for="editable">Contenteditable</label>
+        <div id="editable" class="ime-target" contenteditable="true">foo bar</div>
+
+        <button id="reset" type="button">Reset targets</button>
+        <button id="export" type="button">Export JSON</button>
+      </section>
+      <section>
+        <h2>Event log</h2>
+        <pre id="events"></pre>
+      </section>
+    </main>
+    <script src="recorder.js"></script>
+  </body>
+</html>

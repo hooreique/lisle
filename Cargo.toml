@@ -1,0 +1,23 @@
+[package]
+name = "lisle"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Cole Sebeol and Colemak input method for IBus"
+license = "MIT"
+repository = "https://github.com/song/lisle"
+publish = false
+
+[dependencies]
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+xkbcommon = { version = "0.9", default-features = false }
+zbus = { version = "5.19", features = ["p2p", "tokio"] }
+
+[dev-dependencies]
+futures-util = "0.3"
+pretty_assertions = "1"
+tempfile = "3"
+
+[profile.release]
+lto = "thin"
+strip = "symbols"
