@@ -104,13 +104,20 @@ IBus wire contract test는 private peer D-Bus connection에서 Factory, Engine,
 Service interface와 serialized `IBusText`를 확인한다. 브라우저 수동 검증 fixture는
 [`tests/browser`](tests/browser)에 있다.
 
-## Known Chromium limitation
+## Known Chromium limitations
 
 Chromium의 Wayland text-input-v3 구현은 내부 `CancelComposition()`을 compositor나
 IBus에 알리지 않는다. 따라서 Lisle은 해당 내부 cancel과 아무 lifecycle 변화가
 없는 경우를 구분할 수 없다. Lisle은 추측성 재전송보다 중복 입력과 다른 편집
 문맥으로의 commit 방지를 우선한다. 자세한 lifecycle 정책과 upstream 근거는
 [`docs/implementation.md`](docs/implementation.md)에 기록한다.
+
+`ㅋㅋㅋ`, `ㅠㅠㅠ`처럼 결합되지 않는 동일 자모를 연속 입력하면 Chromium에서
+마지막 자모의 새 preedit이 표시되지 않아 입력 직후 `ㅋㅋ`, `ㅠㅠ`만 보일 수 있다.
+Lisle은 자모 경계에서 이전 preedit을 commit하고 다음 preedit을 시작하지만,
+Chromium은 새 preedit 문자열이 직전 문자열과 같으면 commit 뒤에도 갱신을 생략한다.
+이는 Chromium의 중복 preedit 억제 동작과 생기는 호환성 제한이다. Lisle은 브라우저
+전용으로 조합 범위나 commit 시점을 바꾸지 않는다.
 
 ## License
 

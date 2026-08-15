@@ -34,3 +34,9 @@ GNOME 입력 소스를 Lisle로 선택한 뒤 물리 키보드로 다음을 확�
 오른쪽의 event log와 `Export JSON` 결과에서 중복 `input`, 새 context로 이동한
 preedit, stuck modifier가 없는지 확인한다. 최종 text 전체가 정확히 일치해야 하며
 부분 문자열만 일치하는 것은 성공으로 보지 않는다.
+
+Chromium에서는 결합되지 않는 동일 자모를 반복 입력할 때 commit 뒤의 동일한 새
+preedit을 생략하는 알려진 제한이 있다. 예를 들어 `ㅋㅋㅋ`, `ㅠㅠㅠ` 입력 직후
+마지막 자모가 표시되지 않을 수 있다. 이 현상은 Lisle smoke test 실패로 판정하지
+않으며, Lisle에서 Chromium 전용 commit/preedit 우회를 적용하지 않는다. 원인과
+정책은 [`docs/implementation.md`](../../docs/implementation.md)에 기록되어 있다.

@@ -78,6 +78,25 @@ Chromium text-input-v3의 local `CancelComposition()`은 Wayland request를 보�
 않으므로 engine에서 외부 cancel로 관찰할 수 없다. 이는 구현으로 추측하지 않고
 known platform limitation으로 유지한다.
 
+Chromium text-input-v3는 한 `done`에서 commit을 적용한 뒤에도 새 preedit이 직전에
+적용한 preedit과 같으면 `OnPreeditString()`을 호출하지 않는다. Lisle에서 결합되지
+않는 동일 자모를 반복하면 각 경계는 정상적으로 다음처럼 표현된다.
+
+```text
+첫 ㅋ: Preedit("ㅋ")
+둘째 ㅋ: Commit("ㅋ"), Preedit("ㅋ")
+```
+
+둘째 입력의 commit은 이전 조합을 끝내지만 Chromium의 동일 문자열 검사는 그 사실을
+고려하지 않는다. 따라서 새 `ㅋ` 조합이 Chromium에 전달되지 않고, `ㅋㅋㅋ` 또는
+`ㅠㅠㅠ` 입력 직후 화면과 DOM 조합 상태가 한 자모 뒤처질 수 있다.
+
+Lisle은 이를 우회하려고 여러 독립 자모를 하나의 커지는 preedit으로 유지하거나
+commit을 지연하지 않는다. 그런 처리는 Chromium의 중복 preedit 억제 정책 위에
+추가 추측을 쌓고 다른 client에서의 조합 범위와 commit 시점을 바꾸기 때문이다.
+Lisle은 protocol에 맞는 `CommitText`와 `UpdatePreeditText`를 그대로 보내며 이 현상을
+known Chromium limitation으로 취급한다.
+
 ## Component discovery
 
 IBus 1.5.34는 `IBUS_COMPONENT_PATH`가 없으면 compile-time component directory만
@@ -94,5 +113,6 @@ scan한다. `$XDG_DATA_HOME/ibus/component` scan 코드는 upstream에서 비활
 - [GNOME Shell input method bridge](https://github.com/GNOME/gnome-shell/blob/dcda6594b153aa179d92cc62e2414d84a43ab82c/js/misc/inputMethod.js)
 - [Mutter preedit reset](https://github.com/GNOME/mutter/blob/8fe247a25a5b773e506c3f5f442ca0b7e3d5dc97/clutter/clutter/clutter-input-focus.c#L108-L128)
 - [Chromium Wayland text-input-v3 feature](https://github.com/chromium/chromium/blob/bf0a91d23cfe3dd09db10104ea7f5b9c4621c5fe/ui/base/ui_base_features.cc#L137-L144)
+- [Chromium text-input-v3 event application](https://github.com/chromium/chromium/blob/main/ui/ozone/platform/wayland/host/zwp_text_input_v3.cc)
 - [nixpkgs buildRustPackage](https://github.com/NixOS/nixpkgs/tree/master/pkgs/build-support/rust/build-rust-package)
 - [nixpkgs ibus-with-plugins](https://github.com/NixOS/nixpkgs/blob/master/pkgs/by-name/ib/ibus-with-plugins/package.nix)
