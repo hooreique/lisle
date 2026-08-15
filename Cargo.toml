@@ -5,7 +5,7 @@ edition = "2024"
 rust-version = "1.88"
 description = "Cole Sebeol and Colemak input method for IBus"
 license = "MIT"
-repository = "https://github.com/song/lisle"
+repository = "https://github.com/hooreique/lisle"
 publish = false
 
 [dependencies]

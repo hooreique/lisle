@@ -6,7 +6,7 @@
   <version>@VERSION@</version>
   <author>Lisle contributors</author>
   <license>MIT</license>
-  <homepage>https://github.com/song/lisle</homepage>
+  <homepage>https://github.com/hooreique/lisle</homepage>
   <textdomain>lisle</textdomain>
   <engines>
     <engine>
