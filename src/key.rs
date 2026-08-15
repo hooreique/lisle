@@ -92,14 +92,6 @@ pub fn colemak_output(key: char, shifted: bool) -> Option<char> {
     us_printable(colemak_target(key)?, shifted)
 }
 
-pub fn colemak_forward(key: char, shifted: bool) -> Option<(u32, u32)> {
-    let target = colemak_target(key)?;
-    Some((
-        us_printable(target, shifted)? as u32,
-        representative_keycode(target)?,
-    ))
-}
-
 pub fn hangul_input(key: char, shifted: bool) -> Option<Input> {
     let jamo = match (key, shifted) {
         ('1', false) => Some(Jamo::Final('ㅎ')),
@@ -241,8 +233,6 @@ mod tests {
         assert_eq!(colemak_output('p', false), Some(';'));
         assert_eq!(colemak_output('p', true), Some(':'));
         assert_eq!(colemak_output('1', true), Some('!'));
-        assert_eq!(colemak_forward('e', false), Some((b'f' as u32, 33)));
-        assert_eq!(colemak_forward('n', false), Some((b'k' as u32, 37)));
     }
 
     #[test]

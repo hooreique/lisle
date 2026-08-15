@@ -51,14 +51,12 @@
       };
 
       devShells.${system}.default = pkgs.mkShell {
+        # Keep build and check dependencies aligned with the package. This supplies
+        # cargo, rustc, Clippy, libxml2, and libxkbcommon.
         inputsFrom = [ lisle ];
         packages = [
-          pkgs.cargo
-          pkgs.clippy
           pkgs.dbus
           pkgs.ibus
-          pkgs.libxml2
-          pkgs.rustc
           pkgs.rustfmt
         ];
         RUST_BACKTRACE = "1";

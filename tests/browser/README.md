@@ -16,7 +16,7 @@ GNOME 입력 소스를 Lisle로 선택한 뒤 물리 키보드로 다음을 확�
 | Initial Roman | `e` | `f` |
 | Hangul | right Shift tap, `k f x`, Space | `각 ` |
 | Escape | right Shift tap, `k f`, Escape, `e` | `가f` plus one host Escape |
-| Crying vowel | right Shift tap, `i f a m r 2 j t b b` | `망했어ㅜㅜ` |
+| Crying vowel | right Shift tap, `i f a m r 2 j t b b`, Space | `망했어ㅜㅜ ` |
 | Shortcut | right Shift tap, `k f`, Control+`e` | `가` then exactly one Control+`f` |
 | Space/backspace | right Shift tap, `j f s h e a`, Space, Backspace | Backspace removes the new space |
 
@@ -31,12 +31,19 @@ GNOME 입력 소스를 Lisle로 선택한 뒤 물리 키보드로 다음을 확�
 6. XKB 입력 소스를 Qwerty가 아닌 배열로 바꾼 뒤 같은 물리 위치가 같은 결과를
    내는지 확인한다.
 
+3번에서 `가`가 A에 남는 것은 Lisle이 `FocusOut`에서 새 `CommitText`를 보내기
+때문이 아니다. Mutter가 cached COMMIT preedit을 이전 문맥에 반영한 뒤 Lisle
+callback이 local 상태를 폐기하는 통합 계약을 확인한다.
+
 오른쪽의 event log와 `Export JSON` 결과에서 중복 `input`, 새 context로 이동한
-preedit, stuck modifier가 없는지 확인한다. 최종 text 전체가 정확히 일치해야 하며
-부분 문자열만 일치하는 것은 성공으로 보지 않는다.
+preedit, stuck modifier가 없는지 확인한다. 위 표처럼 조합을 끝내는 경계 입력까지
+마친 뒤에는 최종 text 전체가 정확히 일치해야 하며 부분 문자열만 일치하는 것은
+성공으로 보지 않는다.
 
 Chromium에서는 결합되지 않는 동일 자모를 반복 입력할 때 commit 뒤의 동일한 새
-preedit을 생략하는 알려진 제한이 있다. 예를 들어 `ㅋㅋㅋ`, `ㅠㅠㅠ` 입력 직후
-마지막 자모가 표시되지 않을 수 있다. 이 현상은 Lisle smoke test 실패로 판정하지
-않으며, Lisle에서 Chromium 전용 commit/preedit 우회를 적용하지 않는다. 원인과
-정책은 [`docs/implementation.md`](../../docs/implementation.md)에 기록되어 있다.
+preedit을 생략하는 알려진 제한이 있다. 예를 들어 `ㅋㅋㅋ`, `ㅠㅠㅠ` 입력 직후,
+아직 Space 같은 경계를 입력하기 전에는 마지막 자모가 표시되지 않을 수 있다. 이
+중간 표시만으로 Lisle smoke test 실패를 판정하지 않는다. 경계 입력 뒤의 최종
+text는 위 기준대로 정확해야 한다. Lisle에서는 Chromium 전용 commit/preedit
+우회를 적용하지 않는다. 원인과 정책은
+[`docs/implementation.md`](../../docs/implementation.md)에 기록되어 있다.

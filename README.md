@@ -1,15 +1,17 @@
 # Lisle
 
-Lisle은 `x86_64-linux` GNOME Wayland만을 위한 IBus 입력기이다. 하나의 GNOME
-입력 소스 안에서 다음 두 상태를 제공한다.
+Lisle은 `x86_64-linux`에서 Linux evdev 물리 keycode를 고정 배열로 해석하는 IBus
+입력기이다. 하나의 GNOME 입력 소스 안에서 다음 두 상태를 제공한다.
 
 - 오른쪽 Shift 단일 탭: Cole Sebeol 한글 상태
 - 왼쪽 Shift 단일 탭: Colemak 로마자 상태
 
+이 프로젝트는 GNOME Wayland에서 Chromium을 사용하려다 `kime`를 함께 사용할 수
+없다는 것을 알게 되어 시작했다.
+
 현재 XKB 배열과 무관하게 Linux evdev 물리 keycode를 미국식 Qwerty 위치로
-해석한다. 후보 창, 설정 UI, X11, Fcitx, 다른 데스크톱, macOS와 다른 CPU
-architecture는 지원하지 않는다. 상세 동작은 [`docs/spec.md`](docs/spec.md)가
-규정한다.
+해석한다. 이 저장소에는 후보 창이나 설정 UI가 없다. 입력 동작은
+[`docs/spec.md`](docs/spec.md)가 규정한다.
 
 ## Build
 
@@ -55,7 +57,7 @@ Sources에서 `Lisle`을 추가한다.
 이 flake는 Lisle이 포함된 IBus aggregate도 제공한다.
 
 ```sh
-nix profile install .#ibus-with-lisle
+nix profile add .#ibus-with-lisle
 systemctl --user daemon-reload
 systemctl --user restart org.freedesktop.IBus.session.GNOME.service
 ```
@@ -69,25 +71,15 @@ systemctl --user restart org.freedesktop.IBus.session.GNOME.service
 directory를 모두 넣어야 한다. 이 환경 변수는 기본 경로를 대체하므로 기존 경로를
 누락해서는 안 된다.
 
-## Chromium
+## Chromium verification
 
-Chromium은 native Wayland backend로 실행해야 한다.
-
-```sh
-chromium --ozone-platform=wayland
-```
-
-현재 Chromium은 Wayland text-input-v3를 기본 활성화한다. 오래된 Chromium 또는
-배포판에서 비활성화한 build는 다음 flag가 필요할 수 있다.
+브라우저 수동 검증 fixture는 Chromium의 native Wayland 경로를 사용한다.
 
 ```sh
-chromium \
-  --ozone-platform=wayland \
-  --enable-wayland-ime \
-  --wayland-text-input-version=3
+chromium --ozone-platform=wayland tests/browser/index.html
 ```
 
-`--disable-wayland-ime`와 X11 Ozone backend는 지원하지 않는다.
+검증 절차와 기대 결과는 [`tests/browser`](tests/browser)에 있다.
 
 ## Development
 
@@ -116,8 +108,8 @@ IBus에 알리지 않는다. 따라서 Lisle은 해당 내부 cancel과 아무 l
 마지막 자모의 새 preedit이 표시되지 않아 입력 직후 `ㅋㅋ`, `ㅠㅠ`만 보일 수 있다.
 Lisle은 자모 경계에서 이전 preedit을 commit하고 다음 preedit을 시작하지만,
 Chromium은 새 preedit 문자열이 직전 문자열과 같으면 commit 뒤에도 갱신을 생략한다.
-이는 Chromium의 중복 preedit 억제 동작과 생기는 호환성 제한이다. Lisle은 브라우저
-전용으로 조합 범위나 commit 시점을 바꾸지 않는다.
+이는 Chromium의 중복 preedit 억제 동작과 생기는 호환성 제한이다. Lisle은 이를
+우회하려고 조합 범위나 commit 시점을 바꾸지 않는다.
 
 ## License
 

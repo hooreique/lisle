@@ -1,8 +1,8 @@
 # Lisle implementation notes
 
-## Supported stack
+## Reference integration path
 
-Lisle은 다음 한 경로만 지원한다.
+Lisle의 초기 설계와 브라우저 수동 검증은 다음 경로를 기준으로 한다.
 
 ```text
 Chromium native Wayland
@@ -41,10 +41,10 @@ Colemak XKB layout은 host shortcut의 underlying 배열에만 사용한다.
 
 GNOME Shell 50.4는 IBus의 표준 `layout-variant` property 대신 존재하지 않는 `variant`
 property를 읽는다. 따라서 split descriptor인 `layout=us`,
-`layout_variant=colemak`은 `us`로 잘못 적용된다. Lisle은 지원 대상 GNOME에서
-결정적으로 동작하도록 component의 `layout`에 GNOME XKB ID `us+colemak`을 직접
-기록한다. GNOME/Mutter의 synthetic `ForwardKeyEvent`는 raw modifier state를 보존하지
-않으므로 modifier shortcut 변환에는 사용하지 않는다.
+`layout_variant=colemak`은 `us`로 잘못 적용된다. 이 bridge에서 배열이 결정적으로
+적용되도록 Lisle은 component의 `layout`에 GNOME XKB ID `us+colemak`을 직접 기록한다.
+GNOME/Mutter의 synthetic `ForwardKeyEvent`는 raw modifier state를 보존하지 않으므로
+modifier shortcut 변환에는 사용하지 않는다.
 
 Shift tap 후보의 press는 결과가 결정될 때까지 보류한다. host에 전달해야 하는
 다른 event가 후보를 취소하면 Shift press를 먼저 replay한다. 단순 shifted text가
@@ -55,7 +55,8 @@ Lisle에서 소비되면 bare Shift event는 replay하지 않는다.
 활성 preedit은 `IBUS_ENGINE_PREEDIT_COMMIT`, 빈 preedit은
 `IBUS_ENGINE_PREEDIT_CLEAR` mode로 보낸다. GNOME/Mutter는 click, focus transition,
 input-source transition에서 engine callback 전에 cached COMMIT preedit을 이전
-context에 반영한다.
+context에 반영한다. 이 검증 경로에서 context transition의 commit은 Mutter가
+담당하며, Lisle은 callback을 받은 뒤 local state만 비운다.
 
 명시적인 printable 경계에서 Flush할 때는 빈 CLEAR preedit을 먼저 보내 조합 범위를
 닫고, visible text와 경계 문자를 하나의 `CommitText`로 보낸다. Mutter는 같은 키
@@ -72,7 +73,14 @@ context에 반영한다.
 | `Destroy` | discard context and remove object | none |
 
 Lifecycle callback에서 Lisle이 같은 text를 다시 commit하지 않는다. commit 성공
-여부가 불명확할 때 재전송하지 않는다는 `docs/spec.md`의 안전 우선순위를 따른다.
+여부가 불명확할 때 재전송하지 않는다는 [`spec.md`](spec.md)의 안전 우선순위를
+따른다. `FocusOut`이나 `Disable`에서 Lisle도 commit하면 Mutter가 이미 반영한 text가
+중복될 수 있다.
+
+키 처리 중 outbound preedit, commit 또는 `ForwardKeyEvent` signal 전송이 실패하면
+local `LisleEngine::reset()`을 호출하고 오류를 반환한다. 이 오류 경로에서는 빈
+preedit을 포함한 복구 signal을 추가로 보내지 않는다. 일부 signal이 이미 전달되었을
+수 있으므로 text를 추측하여 다시 보내지 않는다.
 
 Chromium text-input-v3의 local `CancelComposition()`은 Wayland request를 보내지
 않으므로 engine에서 외부 cancel로 관찰할 수 없다. 이는 구현으로 추측하지 않고

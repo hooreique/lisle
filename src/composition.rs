@@ -54,10 +54,6 @@ struct Parts {
 }
 
 impl Composer {
-    pub fn is_empty(&self) -> bool {
-        self.stack.is_empty()
-    }
-
     pub fn preedit(&self) -> String {
         visible(&self.stack)
     }

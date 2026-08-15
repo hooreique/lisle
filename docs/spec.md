@@ -2,9 +2,10 @@
 
 ## 1. 문서의 지위
 
-이 문서는 Lisle의 사용자 관찰 가능 동작을 정의하는 규범 문서이다. 입력기
-프레임워크, 프로그래밍 언어, 프로세스 구조, 저장 형식과 같은 구현 선택은 이
-문서의 범위가 아니다. 구현 세부사항이 이 문서와 충돌하면 이 문서가 우선한다.
+이 문서는 Lisle의 사용자 관찰 가능 입력 동작과 IBus 생명주기 callback의 의미를
+정의하는 규범 문서이다. D-Bus interface shape와 wire format, 프로그래밍 언어,
+프로세스 구조 같은 구현 선택은 이 문서의 범위가 아니다. 구현 세부사항이 이
+문서와 충돌하면 이 문서가 우선한다.
 
 이 문서에서 다음 표현은 규범적 의미를 갖는다.
 
@@ -16,14 +17,15 @@
 
 1. 사용자가 이미 확정한 텍스트를 손실하거나 중복하지 않는다.
 2. 호스트 프로그램의 일반적인 단축키와 편집 동작을 보존한다.
-3. 활성 조합을 암묵적으로 취소하기보다 확정한다.
-4. 입력 상태와 조합 상태를 포커스가 있는 편집 문맥 밖으로 옮기지 않는다.
+3. 활성 편집 문맥 안의 경계 입력에서는 조합을 암묵적으로 취소하기보다 확정한다.
+4. 생명주기 callback이 끝난 조합을 다른 편집 문맥으로 옮기거나 추측하여 재전송하지
+   않는다.
 5. 같은 물리 입력과 상태에는 같은 결과를 낸다.
 
 ## 2. 제품 범위
 
-Lisle은 GNOME Wayland 환경에서 사용하는 한글 입력기이다. 하나의 표시 입력
-소스 안에서 다음 두 입력 상태를 제공한다.
+Lisle은 IBus를 통해 사용하는 한글 입력기이다. 하나의 표시 입력 소스 안에서 다음
+두 입력 상태를 제공한다.
 
 - **한글 상태**: Cole Sebeol 글쇠 배열과 조합 규칙으로 한글을 입력한다.
 - **로마자 상태**: Colemak 글쇠 배열로 로마자를 입력한다.
@@ -32,7 +34,7 @@ Lisle은 다음을 책임진다.
 
 - 물리 글쇠를 대표 글쇠로 식별한다.
 - 왼쪽과 오른쪽 Shift를 구분하여 입력 상태를 선택한다.
-- 한글 조합의 preedit, 확정, 취소와 편집 경계를 관리한다.
+- 한글 조합의 preedit, 확정, Reset에 따른 local Clear와 편집 경계를 관리한다.
 - 로마자 출력과 한글 상태의 단축키를 Colemak 기준으로 해석한다.
 - 처리하지 않는 키와 단축키를 호스트 프로그램에 정확히 한 번 전달한다.
 - 포커스, 활성화, 비활성화와 입력 소스 전환에서 조합 생명주기를 지킨다.
@@ -43,7 +45,7 @@ Lisle은 다음을 책임진다.
 - 사용자 사전과 학습
 - 키 반복 속도와 운영체제 전역 키보드 설정
 - 화면 표시기, 설정 화면과 배포 방식
-- 입력기와 데스크톱 환경 사이의 구체적인 통신 방식
+- 입력기와 데스크톱 환경 사이의 D-Bus interface shape, wire format과 transport
 
 ## 3. 용어
 
@@ -83,8 +85,8 @@ Lisle은 다음을 책임진다.
   비우는 동작이다.
 - **Flush**: 활성 조합의 현재 visible text를 Commit하는 동작이다. 활성 조합이
   없으면 아무 텍스트도 만들지 않는다.
-- **Clear**: Commit 없이 활성 조합을 비우는 동작이다. 명시적 취소 또는 복구
-  상황에서만 사용한다.
+- **Clear**: Commit 없이 활성 조합을 비우는 동작이다. Reset, 편집 문맥 종료 또는
+  오류 복구에 사용한다.
 - **Forward**: Lisle이 소비하지 않은 키 또는 호스트 동작을 호스트에 정확히 한
   번 넘기는 동작이다.
 - **FlushThenEmit**: Flush한 다음 printable text를 Commit하는 동작이다.
@@ -172,7 +174,8 @@ Lisle은 다음을 책임진다.
 - printable 입력은 변환된 Unicode scalar를 Commit한다.
 - Caps Lock은 Lisle의 로마자 대소문자를 바꾸지 않는다. 대문자와 shifted
   symbol은 실제 Shift가 함께 눌린 경우에만 출력한다.
-- Space와 호스트가 직접 제공한 printable whitespace는 그 의미를 보존한다.
+- 물리 Space는 U+0020을 Commit한다. 대표 글쇠로 식별할 수 없는 printable
+  whitespace는 문자 값만 보고 재해석하지 않고 호스트에 전달한다.
 - 물리 Tab과 Enter/Return은 printable 출력으로 변환하지 않고 호스트 동작
   키로 처리한다.
 - dead key 또는 compose 기능처럼 Lisle이 정의하지 않은 문자 조합은 Lisle이
@@ -431,8 +434,9 @@ k f k Backspace Flush -> 가
 
 ### 9.3 공백과 printable non-jamo
 
-- Space와 호스트가 직접 printable text로 제공한 non-control whitespace는
-  `FlushThenEmit`으로 처리한다.
+- 물리 Space는 `FlushThenEmit(U+0020)`으로 처리한다.
+- 대표 글쇠로 식별할 수 없이 호스트가 직접 제공한 non-control whitespace는
+  활성 조합을 Flush한 뒤 원래 입력을 Forward한다.
 - 한글 상태 글쇠표의 non-jamo printable scalar도 `FlushThenEmit`으로 처리한다.
 - 같은 입력에서 Flush한 text와 뒤따르는 scalar는 하나의 committed text로 합쳐도
   된다.
@@ -464,36 +468,45 @@ k f k Backspace Flush -> 가
 
 ## 10. 조합 생명주기
 
+이 장은 callback 전까지 호스트와 입력기 프레임워크가 책임지는 단계와 callback을
+받은 Lisle의 local 처리를 구분한다. 구체적인 통합 경로는
+[`implementation.md`](implementation.md)에서 설명한다.
+
 ### 10.1 포커스 이탈
 
-- 편집 문맥이 포커스를 잃으면 그 문맥의 활성 조합을 가능한 한 해당 문맥에
-  Flush한 뒤 종료한다.
-- Flush할 유효한 이전 문맥이 더 이상 없고 Commit이 안전하지 않다고 플랫폼이
-  명시한 경우에만 Clear할 수 있다. 이 예외는 다른 문맥에 Commit하는 것보다
-  우선한다.
-- 포커스를 얻은 새 문맥에 이전 preedit를 옮기거나 이전 조합을 확정해서는 안 된다.
+- FocusOut callback 전 cached COMMIT preedit을 이전 편집 문맥에 반영하는 단계는
+  호스트와 입력기 프레임워크의 책임이다. Lisle은 그 적용 여부를 관찰할 수 없다.
+- Lisle은 FocusOut callback을 받으면 이전 조합을 다시 Commit하지 않고 local
+  조합과 입력 상태를 폐기한다. callback 뒤에는 이전 Commit의 성공 여부를 추측하여
+  텍스트를 재전송해서는 안 된다.
+- 포커스를 얻은 새 문맥에 이전 preedit이나 입력 상태를 옮겨서는 안 된다.
 - 새 문맥은 로마자 상태에서 시작한다.
 
 ### 10.2 입력 소스 전환과 비활성화
 
-- 사용자가 Lisle에서 다른 입력 소스로 전환하면 활성 조합을 이전 문맥에 Flush한다.
-- Lisle이 비정상 종료 또는 호스트 연결 상실 때문에 안전하게 Commit할 수 없으면
-  남은 조합을 다른 문맥에 복구하려 하지 않는다.
+- Disable callback 전 cached COMMIT preedit을 현재 편집 문맥에 반영하는 단계는
+  호스트와 입력기 프레임워크의 책임이다. Lisle은 그 적용 여부를 관찰할 수 없다.
+- Lisle은 Disable callback을 받으면 outbound text를 만들지 않고 local 조합과 입력
+  상태를 폐기한다.
+- 비정상 종료나 연결 상실 뒤 남은 조합을 다른 문맥에 복구하거나 재전송하지 않는다.
 - Lisle로 다시 돌아오면 로마자 상태이며 이전 활성 조합은 없어야 한다.
 
-### 10.3 외부 commit 및 cancel 요청
+### 10.3 Reset
 
-- 호스트가 composition commit을 요청하면 활성 조합을 Flush한다.
-- 호스트가 composition cancel을 요청하면 활성 조합을 Clear한다.
-- commit과 cancel 요청을 같은 동작으로 취급해서는 안 된다.
-- 요청 완료 뒤 preedit는 비어야 한다.
+- Reset callback은 local 활성 조합과 Shift 단일 탭 후보를 Clear한다.
+- Reset은 현재 로마자 또는 한글 입력 상태를 보존한다.
+- Reset 처리 뒤 preedit이 비었음을 알리며, 이전 visible text를 Commit하지 않는다.
+- 호스트가 구분하는 commit 또는 cancel 결과가 있다면 Reset callback 전에 호스트와
+  입력기 프레임워크가 적용한다. Lisle은 하나의 Reset callback만 보고 그 결과를
+  추측해서는 안 된다.
 
 ### 10.4 마우스와 caret 이동
 
-- 마우스 클릭, touch 입력 또는 외부 caret/selection 변경이 활성 조합의 소유
-  위치를 바꿀 수 있으면 먼저 Flush한다.
-- 그 뒤 이동 동작은 호스트가 수행하도록 한다.
-- 이전 위치의 preedit를 새 caret 위치에서 계속해서는 안 된다.
+- 마우스, touch와 caret/selection 이동은 호스트가 처리한다.
+- Lisle은 cursor location이나 surrounding text callback만으로 문서 위치 변화를
+  추측하거나 명시적 위치에 Commit하지 않는다.
+- 이동 때문에 FocusOut, Disable 또는 Reset callback이 발생하면 해당 callback의
+  규칙을 적용한다.
 
 ### 10.5 순서와 재진입
 
@@ -510,9 +523,10 @@ k f k Backspace Flush -> 가
 - 물리 글쇠 위치를 신뢰성 있게 식별할 수 없으면 문자 값만 보고 한글 자모로
   추측해서는 안 된다. 활성 조합을 Flush한 뒤 원래 입력을 호스트에 전달한다.
 - 알 수 없는 modifier 또는 키 종류는 기본적으로 Forward한다.
-- preedit 갱신이 실패했지만 이전 문맥에 Commit할 수 있으면 활성 visible text를
-  한 번 Commit하여 텍스트 손실을 피한다.
-- Commit 성공 여부가 불명확한 경우 같은 텍스트를 무조건 재전송해서는 안 된다.
+- outbound preedit, Commit 또는 Forward 전송이 실패하면 local engine의 활성
+  조합과 Shift 후보를 Clear하고 오류를 반환한다. 이 오류 복구에서는 추가 outbound
+  action을 보내지 않는다.
+- 일부 signal의 성공 여부가 불명확한 경우 같은 text나 event를 재전송해서는 안 된다.
   중복 입력 방지가 손실 추정 복구보다 우선한다.
 - 잘못되거나 오래된 selection/range 정보 때문에 일반 입력을 명시적 문서 위치에
   삽입해서는 안 된다. 입력기는 자신이 소유한 활성 preedit만 교체하고, 그 밖의
@@ -567,10 +581,12 @@ k f                                    -> commit "", preedit "가"
 k f x f                                -> commit "각", preedit "ㅏ"
 k f x f Space                          -> commit "각ㅏ ", preedit ""
 
-# 문맥 경계
-한글 상태에서 k f 후 포커스 이탈       -> 이전 문맥에 "가" commit
+# 문맥 경계: implementation.md의 Mutter reference path
+한글 상태에서 k f 후 포커스 이탈       -> 호스트가 이전 문맥에 "가" 반영,
+                                           Lisle local state 폐기
 새 편집 문맥 활성화                    -> 로마자, preedit 없음
-한글 상태에서 k f 후 입력 소스 전환    -> 이전 문맥에 "가" commit
+한글 상태에서 k f 후 입력 소스 전환    -> 호스트가 이전 문맥에 "가" 반영,
+                                           Lisle local state 폐기
 Lisle 재선택                           -> 로마자, preedit 없음
 ```
 
@@ -581,10 +597,11 @@ Lisle 재선택                           -> 로마자, preedit 없음
 
 1. 해당 입력이 현재 활성 조합의 명시된 조합 입력인가? 그렇다면 조합에서 소비한다.
 2. Backspace인가? 활성 조합이 있으면 입력 스택을 한 단계 되돌리고, 없으면 Forward한다.
-3. 명시적 cancel인가? 그렇다면 Clear한다.
-4. printable text인가? 활성 조합을 Flush한 뒤 해당 text를 Commit한다.
+3. Reset callback인가? local 조합과 Shift 후보를 Clear하고 입력 상태를 보존한다.
+4. 대표 글쇠로 식별한 printable text인가? 활성 조합을 Flush한 뒤 해당 text를
+   Commit한다.
 5. 단축키, 탐색 키 또는 호스트 동작인가? 활성 조합을 Flush한 뒤 Forward한다.
-6. 편집 문맥 종료인가? 이전 문맥에 안전하게 Flush하고 상태를 폐기한다.
+6. 편집 문맥 종료 callback인가? 텍스트를 재전송하지 않고 local 상태를 폐기한다.
 7. 어느 범주인지 확정할 수 없는가? 활성 조합을 안전하게 Flush한 뒤 원래 입력을
    정확히 한 번 Forward한다.
 
