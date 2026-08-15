@@ -18,7 +18,7 @@
       <longname>Lisle</longname>
       <description>Cole Sebeol Hangul and Colemak Roman input</description>
       <icon>@ICON@</icon>
-      <symbol>리</symbol>
+      <symbol>li</symbol>
       <rank>80</rank>
     </engine>
   </engines>
