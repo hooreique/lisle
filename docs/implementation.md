@@ -31,10 +31,20 @@ Engine destroy 뒤 D-Bus object와 모든 transient composition state를 제거�
 - 변환하지 않는 host event: 필요한 Flush signal을 먼저 보낸 뒤
   `ProcessKeyEvent=false`를 반환한다.
 - Lisle printable 또는 jamo: commit/preedit signal을 보내고 `true`를 반환한다.
-- Colemak shortcut: keysym과 evdev keycode를 함께 변환한 `ForwardKeyEvent`를 보내고
-  `true`를 반환한다.
+- Colemak shortcut: component의 `us(colemak)` XKB keymap이 해석한 원본 event를
+  `ProcessKeyEvent=false`로 통과시킨다. `ForwardKeyEvent`로 합성하지 않는다.
 - consume한 press의 release도 consume한다.
 - `ForwardKeyEvent`를 보낸 event에 대해 동시에 `false`를 반환하지 않는다.
+
+일반 문자와 한글 배열은 XKB keysym이 아니라 evdev keycode로 결정한다. component의
+Colemak XKB layout은 host shortcut의 underlying 배열에만 사용한다.
+
+GNOME Shell 50.4는 IBus의 표준 `layout-variant` property 대신 존재하지 않는 `variant`
+property를 읽는다. 따라서 split descriptor인 `layout=us`,
+`layout_variant=colemak`은 `us`로 잘못 적용된다. Lisle은 지원 대상 GNOME에서
+결정적으로 동작하도록 component의 `layout`에 GNOME XKB ID `us+colemak`을 직접
+기록한다. GNOME/Mutter의 synthetic `ForwardKeyEvent`는 raw modifier state를 보존하지
+않으므로 modifier shortcut 변환에는 사용하지 않는다.
 
 Shift tap 후보의 press는 결과가 결정될 때까지 보류한다. host에 전달해야 하는
 다른 event가 후보를 취소하면 Shift press를 먼저 replay한다. 단순 shifted text가

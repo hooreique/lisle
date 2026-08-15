@@ -14,7 +14,7 @@
       <language>ko</language>
       <license>MIT</license>
       <author>Lisle contributors</author>
-      <layout>us</layout>
+      <layout>us+colemak</layout>
       <longname>Lisle</longname>
       <description>Cole Sebeol Hangul and Colemak Roman input</description>
       <icon>@ICON@</icon>

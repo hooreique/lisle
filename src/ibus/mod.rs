@@ -553,25 +553,14 @@ mod tests {
             cleared.body().deserialize().expect("clear signal body");
         assert_eq!((cursor, visible, mode), (0, false, PREEDIT_CLEAR));
 
-        let mut forwards = engine
-            .receive_signal("ForwardKeyEvent")
-            .await
-            .expect("forward signal stream");
         let handled: bool = engine
             .call(
                 "ProcessKeyEvent",
-                &(b'e' as u32, 18_u32, crate::engine::CONTROL_MASK),
+                &(b'f' as u32, 18_u32, crate::engine::CONTROL_MASK),
             )
             .await
             .expect("shortcut event");
-        assert!(handled);
-        let forwarded = tokio::time::timeout(std::time::Duration::from_secs(1), forwards.next())
-            .await
-            .expect("forward signal timeout")
-            .expect("forward signal");
-        let forwarded: (u32, u32, u32) =
-            forwarded.body().deserialize().expect("forward signal body");
-        assert_eq!(forwarded, (b'f' as u32, 33, crate::engine::CONTROL_MASK));
+        assert!(!handled);
 
         let service = zbus::Proxy::new(
             &client,

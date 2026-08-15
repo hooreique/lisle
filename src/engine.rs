@@ -6,10 +6,7 @@ use std::ffi::OsStr;
 use xkbcommon::xkb::{self, compose};
 
 use crate::composition::{Composer, Input};
-use crate::key::{
-    colemak_output, colemak_target, hangul_input, representative_key, representative_keycode,
-    us_printable,
-};
+use crate::key::{colemak_output, hangul_input, representative_key};
 
 pub const SHIFT_MASK: u32 = 1;
 pub const LOCK_MASK: u32 = 1 << 1;
@@ -24,8 +21,6 @@ pub const HYPER_MASK: u32 = 1 << 27;
 pub const META_MASK: u32 = 1 << 28;
 pub const RELEASE_MASK: u32 = 1 << 30;
 
-const SHORTCUT_MASK: u32 =
-    CONTROL_MASK | MOD1_MASK | MOD4_MASK | SUPER_MASK | HYPER_MASK | META_MASK;
 const NON_TEXT_IGNORED_MASK: u32 =
     SHIFT_MASK | LOCK_MASK | MOD2_MASK | RELEASE_MASK | HANDLED_MASK | FORWARD_MASK;
 
@@ -118,7 +113,6 @@ impl ShiftTracker {
 enum ReleaseRoute {
     Consume,
     PassThrough,
-    Transformed { target: char, keycode: u32 },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -249,24 +243,7 @@ impl LisleEngine {
 
         let non_text_modifiers = event.state & !NON_TEXT_IGNORED_MASK;
         if non_text_modifiers != 0 {
-            let mut actions = self.flush_actions();
-            if non_text_modifiers & !SHORTCUT_MASK != 0 {
-                return (false, actions, ReleaseRoute::PassThrough);
-            }
-
-            if let Some(key) = representative_key(event.keycode)
-                && let Some(target) = colemak_target(key)
-                && let Some(keycode) = representative_keycode(target)
-                && let Some(keyval) = us_printable(target, event.state & SHIFT_MASK != 0)
-            {
-                actions.push(Action::Forward {
-                    keyval: keyval as u32,
-                    keycode,
-                    state: event.state,
-                });
-                return (true, actions, ReleaseRoute::Transformed { target, keycode });
-            }
-            return (false, actions, ReleaseRoute::PassThrough);
+            return (false, self.flush_actions(), ReleaseRoute::PassThrough);
         }
 
         if event.keyval == keysym::BACK_SPACE {
@@ -325,20 +302,10 @@ impl LisleEngine {
         if routes.is_empty() {
             return (true, Vec::new());
         }
-        if routes == [ReleaseRoute::PassThrough] {
+        if routes.contains(&ReleaseRoute::PassThrough) {
             return (false, Vec::new());
         }
-
-        let actions = routes
-            .into_iter()
-            .rev()
-            .filter_map(|route| match route {
-                ReleaseRoute::Consume => None,
-                ReleaseRoute::PassThrough => Some(forward(event)),
-                route @ ReleaseRoute::Transformed { .. } => Some(transformed(event, route)),
-            })
-            .collect();
-        (true, actions)
+        (true, Vec::new())
     }
 
     fn process_host_compose(&mut self, event: KeyEvent) -> (bool, Vec<Action>) {
@@ -487,19 +454,6 @@ fn forward(event: KeyEvent) -> Action {
     Action::Forward {
         keyval: event.keyval,
         keycode: event.keycode,
-        state: event.state,
-    }
-}
-
-fn transformed(event: KeyEvent, route: ReleaseRoute) -> Action {
-    let ReleaseRoute::Transformed { target, keycode } = route else {
-        unreachable!("only transformed routes produce transformed events");
-    };
-    let keyval = us_printable(target, event.state & SHIFT_MASK != 0)
-        .expect("Colemak target is a printable representative key") as u32;
-    Action::Forward {
-        keyval,
-        keycode,
         state: event.state,
     }
 }
@@ -755,34 +709,29 @@ mod tests {
     }
 
     #[test]
-    fn roman_printable_and_shortcut_use_colemak() {
+    fn roman_printable_uses_colemak_and_shortcut_passes_through() {
         let mut engine = LisleEngine::default();
         assert_eq!(
             engine.process(event(b'e' as u32, 18, 0)),
             (true, vec![Action::Commit("f".into())])
         );
-        assert_eq!(
-            engine.process(event(b'e' as u32, 18, CONTROL_MASK)),
-            (
-                true,
-                vec![Action::Forward {
-                    keyval: b'f' as u32,
-                    keycode: 33,
-                    state: CONTROL_MASK,
-                }]
-            )
-        );
-        assert_eq!(
-            engine.process(event(b'e' as u32, 18, CONTROL_MASK | RELEASE_MASK)),
-            (
-                true,
-                vec![Action::Forward {
-                    keyval: b'f' as u32,
-                    keycode: 33,
-                    state: CONTROL_MASK | RELEASE_MASK,
-                }]
-            )
-        );
+        for modifier in [
+            CONTROL_MASK,
+            MOD1_MASK,
+            MOD4_MASK,
+            SUPER_MASK,
+            HYPER_MASK,
+            META_MASK,
+        ] {
+            assert_eq!(
+                engine.process(event(b'f' as u32, 18, modifier)),
+                (false, Vec::new())
+            );
+            assert_eq!(
+                engine.process(event(b'f' as u32, 18, modifier | RELEASE_MASK)),
+                (false, Vec::new())
+            );
+        }
     }
 
     #[test]
@@ -808,16 +757,8 @@ mod tests {
         assert_eq!(
             engine.process(event(b'e' as u32, 18, state)),
             (
-                true,
-                vec![
-                    Action::Commit("ㄱ".into()),
-                    Action::Preedit(String::new()),
-                    Action::Forward {
-                        keyval: b'f' as u32,
-                        keycode: 33,
-                        state,
-                    },
-                ]
+                false,
+                vec![Action::Commit("ㄱ".into()), Action::Preedit(String::new())]
             )
         );
     }
@@ -825,21 +766,17 @@ mod tests {
     #[test]
     fn route_changing_repeats_use_current_semantics_and_release_original_routes() {
         let mut engine = LisleEngine::default();
-        engine.process(event(b'e' as u32, 18, CONTROL_MASK));
+        assert_eq!(
+            engine.process(event(b'f' as u32, 18, CONTROL_MASK)),
+            (false, Vec::new())
+        );
         assert_eq!(
             engine.process(event(b'e' as u32, 18, 0)),
             (true, vec![Action::Commit("f".into())])
         );
         assert_eq!(
             engine.process(event(b'e' as u32, 18, RELEASE_MASK)),
-            (
-                true,
-                vec![Action::Forward {
-                    keyval: b'f' as u32,
-                    keycode: 33,
-                    state: RELEASE_MASK,
-                }]
-            )
+            (false, Vec::new())
         );
 
         select_hangul(&mut engine);
@@ -859,10 +796,10 @@ mod tests {
     }
 
     #[test]
-    fn repeat_release_closes_every_host_visible_key_identity() {
+    fn repeated_shortcut_routes_keep_the_release_passthrough() {
         const MOD5: u32 = 1 << 7;
         let mut engine = LisleEngine::default();
-        engine.process(event(b'e' as u32, 18, CONTROL_MASK));
+        engine.process(event(b'f' as u32, 18, CONTROL_MASK));
         assert_eq!(
             engine.process(event(b'e' as u32, 18, MOD5)),
             (false, Vec::new())
@@ -870,50 +807,22 @@ mod tests {
         let release_state = MOD5 | RELEASE_MASK;
         assert_eq!(
             engine.process(event(b'e' as u32, 18, release_state)),
-            (
-                true,
-                vec![
-                    Action::Forward {
-                        keyval: b'e' as u32,
-                        keycode: 18,
-                        state: release_state,
-                    },
-                    Action::Forward {
-                        keyval: b'f' as u32,
-                        keycode: 33,
-                        state: release_state,
-                    },
-                ]
-            )
+            (false, Vec::new())
         );
     }
 
     #[test]
-    fn transformed_release_uses_current_shift_level() {
+    fn shifted_shortcut_press_and_release_pass_through() {
         let mut engine = LisleEngine::default();
         let press_state = CONTROL_MASK | SHIFT_MASK;
         assert_eq!(
-            engine.process(event(b'P' as u32, 25, press_state)),
-            (
-                true,
-                vec![Action::Forward {
-                    keyval: b':' as u32,
-                    keycode: 39,
-                    state: press_state,
-                }]
-            )
+            engine.process(event(b':' as u32, 25, press_state)),
+            (false, Vec::new())
         );
         let release_state = CONTROL_MASK | RELEASE_MASK;
         assert_eq!(
-            engine.process(event(b'p' as u32, 25, release_state)),
-            (
-                true,
-                vec![Action::Forward {
-                    keyval: b';' as u32,
-                    keycode: 39,
-                    state: release_state,
-                }]
-            )
+            engine.process(event(b';' as u32, 25, release_state)),
+            (false, Vec::new())
         );
     }
 
@@ -977,24 +886,16 @@ mod tests {
     }
 
     #[test]
-    fn shortcut_flushes_before_forwarding_translated_key() {
+    fn shortcut_flushes_before_passing_through() {
         let mut engine = LisleEngine::default();
         select_hangul(&mut engine);
         engine.process(event(b'k' as u32, 37, 0));
         engine.process(event(b'f' as u32, 33, 0));
         assert_eq!(
-            engine.process(event(b'e' as u32, 18, CONTROL_MASK)),
+            engine.process(event(b'f' as u32, 18, CONTROL_MASK)),
             (
-                true,
-                vec![
-                    Action::Commit("가".into()),
-                    Action::Preedit(String::new()),
-                    Action::Forward {
-                        keyval: b'f' as u32,
-                        keycode: 33,
-                        state: CONTROL_MASK,
-                    },
-                ]
+                false,
+                vec![Action::Commit("가".into()), Action::Preedit(String::new())]
             )
         );
     }
@@ -1097,18 +998,11 @@ mod tests {
     #[test]
     fn reset_preserves_held_key_release_identity() {
         let mut engine = LisleEngine::default();
-        engine.process(event(b'p' as u32, 25, CONTROL_MASK));
+        engine.process(event(b';' as u32, 25, CONTROL_MASK));
         engine.reset();
         assert_eq!(
-            engine.process(event(b'p' as u32, 25, CONTROL_MASK | RELEASE_MASK)),
-            (
-                true,
-                vec![Action::Forward {
-                    keyval: b';' as u32,
-                    keycode: 39,
-                    state: CONTROL_MASK | RELEASE_MASK,
-                }]
-            )
+            engine.process(event(b';' as u32, 25, CONTROL_MASK | RELEASE_MASK)),
+            (false, Vec::new())
         );
     }
 

@@ -185,8 +185,8 @@ Lisle은 다음을 책임진다.
 - 단축키의 문자 의미는 Colemak `underlying roman layout`을 따른다.
 - 예를 들어 대표 글쇠 `e`는 underlying `f`이므로 `Control+e`는 호스트에
   `Control+f` 의미로 전달한다.
-- modifier 집합은 그대로 보존하고 대표 글쇠에 해당하는 underlying 글쇠만
-  변환한다.
+- modifier 조합은 합성하지 않고 Colemak XKB가 해석한 원본 event를 호스트에
+  통과시킨다. modifier 집합과 press/release identity는 그대로 보존한다.
 - 시스템이 텍스트 입력기보다 앞에서 예약한 전역 단축키는 Lisle의 처리 대상이
   아니다.
 
@@ -451,12 +451,12 @@ k f k Backspace Flush -> 가
 - Control, Alt, Super 또는 호스트 단축키 modifier가 포함된 조합은 한글 자모
   입력이나 Shift 단일 탭이 아니다.
 - 활성 조합이 있으면 먼저 Flush한다.
-- 로마자 대표 글쇠를 포함한 단축키는 Colemak `underlying roman layout`의
-  글쇠로 변환하여 Forward한다.
+- 로마자 대표 글쇠를 포함한 단축키는 component의 Colemak XKB 배열로 해석된
+  원본 event를 호스트에 통과시킨다.
 - modifier 집합은 보존한다. 단, Shift는 underlying 글쇠의 대소문자 또는
   shifted symbol 의미에 정상적으로 참여한다.
-- 예: `k f Control(e)`는 먼저 `가`를 Commit하고 `Control+f`를 Forward한다.
-- 예: `Control(n)`은 `Control+k`를 Forward한다.
+- 예: `k f Control(e)`는 먼저 `가`를 Commit하고 원본 `Control+f` event를 통과시킨다.
+- 예: `Control(n)`은 Colemak XKB가 해석한 `Control+k` event를 통과시킨다.
 - 입력기가 의미를 모르는 modifier 조합은 텍스트로 소비하지 말고 호스트에
   전달한다.
 

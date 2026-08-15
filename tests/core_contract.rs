@@ -269,20 +269,36 @@ fn key_delivery_is_never_both_passed_through_and_synthetically_forwarded() {
 }
 
 #[test]
-fn shortcuts_preserve_modifiers_and_translate_both_keysym_and_keycode() {
+fn shortcuts_preserve_the_xkb_mapped_event_by_passing_it_through() {
     let mut engine = LisleEngine::default();
     let state = CONTROL_MASK | SHIFT_MASK | lisle::engine::LOCK_MASK;
     assert_eq!(
-        engine.process(KeyEvent::new(b'E' as u32, 18, state)),
-        (
-            true,
-            vec![Action::Forward {
-                keyval: b'F' as u32,
-                keycode: 33,
-                state,
-            }]
-        )
+        engine.process(KeyEvent::new(b'F' as u32, 18, state)),
+        (false, Vec::new())
     );
+}
+
+#[test]
+fn reported_alt_g_and_control_k_shortcuts_use_colemak_meanings() {
+    for (physical, modifier, xkb_mapped) in [
+        ('g', lisle::engine::MOD1_MASK, 'd'),
+        ('k', CONTROL_MASK, 'e'),
+    ] {
+        let mut engine = LisleEngine::default();
+        let keycode = representative_keycode(physical).expect("physical keycode");
+        assert_eq!(
+            engine.process(KeyEvent::new(xkb_mapped as u32, keycode, modifier)),
+            (false, Vec::new())
+        );
+        assert_eq!(
+            engine.process(KeyEvent::new(
+                xkb_mapped as u32,
+                keycode,
+                modifier | RELEASE_MASK,
+            )),
+            (false, Vec::new())
+        );
+    }
 }
 
 #[test]

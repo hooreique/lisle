@@ -92,6 +92,7 @@ rustPlatform.buildRustPackage {
     grep -F "<exec>$out/libexec/ibus-engine-lisle --ibus</exec>" "$component"
     grep -F "<version>${cargoToml.package.version}</version>" "$component"
     grep -F "<icon>$out/share/icons/hicolor/scalable/apps/lisle.svg</icon>" "$component"
+    grep -F "<layout>us+colemak</layout>" "$component"
     if grep -F '@' "$component"; then
       echo "unsubstituted placeholder in $component" >&2
       exit 1
