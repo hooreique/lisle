@@ -286,9 +286,21 @@ impl LisleEngine {
                     (true, actions, ReleaseRoute::Consume)
                 }
                 Some(Input::Emit(output)) => {
-                    let mut actions = self.flush_actions();
-                    actions.push(Action::Commit(output.to_string()));
-                    (true, actions, ReleaseRoute::Consume)
+                    let mut text = self.composer.flush();
+                    if text.is_empty() {
+                        (
+                            true,
+                            vec![Action::Commit(output.to_string())],
+                            ReleaseRoute::Consume,
+                        )
+                    } else {
+                        text.push(output);
+                        (
+                            true,
+                            vec![Action::Preedit(String::new()), Action::Commit(text)],
+                            ReleaseRoute::Consume,
+                        )
+                    }
                 }
                 None => (false, Vec::new(), ReleaseRoute::PassThrough),
             },
@@ -441,7 +453,7 @@ impl LisleEngine {
         if text.is_empty() {
             Vec::new()
         } else {
-            vec![Action::Commit(text), Action::Preedit(String::new())]
+            vec![Action::Preedit(String::new()), Action::Commit(text)]
         }
     }
 }
@@ -758,7 +770,7 @@ mod tests {
             engine.process(event(b'e' as u32, 18, state)),
             (
                 false,
-                vec![Action::Commit("ㄱ".into()), Action::Preedit(String::new())]
+                vec![Action::Preedit(String::new()), Action::Commit("ㄱ".into())]
             )
         );
     }
@@ -842,7 +854,7 @@ mod tests {
             engine.process(event(keysym::LEFT, 105, 0)),
             (
                 false,
-                vec![Action::Commit("가".into()), Action::Preedit(String::new())]
+                vec![Action::Preedit(String::new()), Action::Commit("가".into())]
             )
         );
     }
@@ -880,7 +892,7 @@ mod tests {
             result,
             (
                 false,
-                vec![Action::Commit("가".into()), Action::Preedit(String::new())]
+                vec![Action::Preedit(String::new()), Action::Commit("가".into())]
             )
         );
     }
@@ -895,7 +907,7 @@ mod tests {
             engine.process(event(b'f' as u32, 18, CONTROL_MASK)),
             (
                 false,
-                vec![Action::Commit("가".into()), Action::Preedit(String::new())]
+                vec![Action::Preedit(String::new()), Action::Commit("가".into())]
             )
         );
     }
@@ -1043,7 +1055,7 @@ mod tests {
                 engine.process(event(keyval, 200, 0)),
                 (
                     false,
-                    vec![Action::Commit("가".into()), Action::Preedit(String::new())]
+                    vec![Action::Preedit(String::new()), Action::Commit("가".into())]
                 ),
                 "keyval={keyval:#x}"
             );

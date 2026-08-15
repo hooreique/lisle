@@ -226,6 +226,30 @@ fn commit_preedit_and_boundary_order_match_the_specification() {
 }
 
 #[test]
+fn space_commits_flushed_preedit_and_space_in_one_action() {
+    let mut engine = LisleEngine::default();
+    engine.process(KeyEvent::new(keysym::SHIFT_R, 54, SHIFT_MASK));
+    engine.process(KeyEvent::new(
+        keysym::SHIFT_R,
+        54,
+        SHIFT_MASK | RELEASE_MASK,
+    ));
+
+    for key in ['k', 'f'] {
+        let keycode = representative_keycode(key).expect("representative key");
+        engine.process(KeyEvent::new(key as u32, keycode, 0));
+    }
+    let space = representative_keycode(' ').expect("space keycode");
+    assert_eq!(
+        engine.process(KeyEvent::new(' ' as u32, space, 0)),
+        (
+            true,
+            vec![Action::Preedit(String::new()), Action::Commit("가 ".into()),]
+        )
+    );
+}
+
+#[test]
 fn unknown_physical_identity_flushes_without_guessing_from_keyval() {
     let mut harness = Harness::default();
     harness.select_hangul();

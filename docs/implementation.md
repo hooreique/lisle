@@ -57,6 +57,13 @@ Lisle에서 소비되면 bare Shift event는 replay하지 않는다.
 input-source transition에서 engine callback 전에 cached COMMIT preedit을 이전
 context에 반영한다.
 
+명시적인 printable 경계에서 Flush할 때는 빈 CLEAR preedit을 먼저 보내 조합 범위를
+닫고, visible text와 경계 문자를 하나의 `CommitText`로 보낸다. Mutter는 같은 키
+처리에서 발생한 IM event를 하나의 text-input-v3 `done`으로 묶는다. 이 배치 안의
+여러 `commit_string`은 누적되지 않으므로 `CommitText("녕")`, `CommitText(" ")`처럼
+나누면 Chromium에는 마지막 공백만 남는다. 새 조합이 즉시 이어지는 음절 경계는
+별도 키 처리이므로 기존 text를 commit한 뒤 새 preedit을 보낸다.
+
 | Callback | Lisle local action | Outbound text |
 |---|---|---|
 | `FocusIn`, `Enable` | empty Roman context | empty CLEAR preedit |

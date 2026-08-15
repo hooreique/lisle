@@ -434,6 +434,8 @@ k f k Backspace Flush -> 가
 - Space와 호스트가 직접 printable text로 제공한 non-control whitespace는
   `FlushThenEmit`으로 처리한다.
 - 한글 상태 글쇠표의 non-jamo printable scalar도 `FlushThenEmit`으로 처리한다.
+- 같은 입력에서 Flush한 text와 뒤따르는 scalar는 하나의 committed text로 합쳐도
+  된다.
 - Flush된 조합과 뒤따르는 scalar의 순서를 바꾸거나 둘 중 하나를 잃어서는 안 된다.
 - 물리 Tab과 Enter/Return 키는 호스트가 별도의 printable text 입력으로 제공하지
   않는 한 9.4의 호스트 동작 키 규칙을 따른다.
