@@ -702,12 +702,13 @@ aggregate 하나를 만들어야 한다.
 | engine package/module | 자기 executable, XML, metadata와 engine 등록 기여 | IBus 전체 daemon과 다른 engine의 목록 |
 | application/toolkit | focused widget, surrounding text, preedit 표시, commit 적용 | 전역 engine process lifecycle |
 
-이 경계를 Home Manager option으로 옮기면 이상적인 구조는 다음과 같다.
+NixOS에서는 이 경계를 공식 input method 계층으로 다음처럼 표현한다.
 
 ```nix
-programs.ibus = {
+i18n.inputMethod = {
   enable = true;
-  engines = [
+  type = "ibus";
+  ibus.engines = [
     lisle
     pkgs.ibus-engines.hangul
     pkgs.ibus-engines.mozc
@@ -715,9 +716,11 @@ programs.ibus = {
 };
 ```
 
-generic IBus module이 최종 `engines` 목록으로 aggregate와 session integration을
-만들고, Lisle/Hangul/Mozc module은 각각 자기 package 하나만 그 목록에 기여한다.
-engine끼리는 서로의 존재를 알 필요가 없다.
+NixOS IBus module이 최종 `engines` 목록으로 aggregate, daemon, systemd/D-Bus,
+dconf 기반과 session environment를 만든다. Lisle module은 자기 package 하나만 이
+목록에 기여하고 다른 engine은 같은 계층에 직접 추가한다. Home Manager는 runtime을
+다시 만들지 않고 사용자별 GNOME source 목록만 dconf로 관리한다. engine끼리는
+서로의 존재를 알 필요가 없다.
 
 ## 17. Lisle의 정확한 위치
 

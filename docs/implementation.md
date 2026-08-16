@@ -110,10 +110,11 @@ known Chromium limitation으로 취급한다.
 IBus 1.5.34는 `IBUS_COMPONENT_PATH`가 없으면 compile-time component directory만
 scan한다. `$XDG_DATA_HOME/ibus/component` scan 코드는 upstream에서 비활성화되어
 있다. NixOS에서는 `i18n.inputMethod.ibus.engines`가 `ibus-with-plugins` aggregate를
-구성한다. Home Manager module도 사용자별 aggregate를 구성하고, NixOS가 설치한
-`/etc/systemd/user` unit보다 먼저 선택되도록 aggregate의 unit을
-`$XDG_CONFIG_HOME/systemd/user`에 연결한다. package나 component XML만 profile에
-추가하는 것으로는 충분하지 않다.
+구성하고 공식 IBus module이 daemon, systemd/D-Bus, dconf 기반과 session 변수를 함께
+관리한다. Lisle NixOS module은 이 목록에 Lisle package 하나만 기여한다. 다른 engine도
+같은 `i18n.inputMethod.ibus.engines` 목록에 추가해야 하며, package나 component XML만
+profile에 추가하는 것으로는 충분하지 않다. 사용자별 GNOME 입력 소스 선호는 이
+runtime 계층과 별도로 dconf에서 관리한다.
 
 ## Primary upstream references
 

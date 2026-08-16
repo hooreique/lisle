@@ -32,105 +32,67 @@ share/doc/lisle/tests/browser/
 
 `nix build`는 release build, test, Clippy, component XML 검증을 함께 수행한다.
 
-## Home Manager installation
+## NixOS installation
 
-개인 데스크톱에서는 Home Manager module 사용을 권장한다. Lisle 실행에는 시스템
-권한이 필요하지 않으며, 이 module은 Lisle이 포함된 IBus aggregate, 사용자 systemd
-unit, D-Bus service, GTK cache와 GNOME input source를 함께 구성한다.
+NixOS module을 기본 설치 경로로 사용한다. NixOS의 공식
+`i18n.inputMethod.ibus` 통합이 Lisle을 포함한 IBus aggregate, daemon, systemd user
+unit, D-Bus service, dconf 기반과 session 변수를 일관된 경로로 구성한다.
 
 ```nix
 # flake.nix의 inputs 안
-inputs = {
-  # ...
-
-  lisle = {
-    url = "github:hooreique/lisle";
-    inputs.nixpkgs.follows = "nixpkgs";
-    inputs.home-manager.follows = "home-manager";
-  };
+inputs.lisle = {
+  url = "github:hooreique/lisle";
+  inputs.nixpkgs.follows = "nixpkgs";
 };
 ```
-
-```nix
-# homeManagerConfiguration 안
-modules = [
-  inputs.lisle.homeManagerModules.default
-  {
-    programs.lisle.enable = true;
-  }
-];
-```
-
-여러 플랫폼의 Home Manager 구성을 한 flake에서 평가한다면 지원 플랫폼에서만
-활성화한다.
-
-```nix
-{
-  programs.lisle.enable =
-    pkgs.stdenv.hostPlatform.system == "x86_64-linux";
-}
-```
-
-`homeManagerModule` 단수 alias도 제공한다. NixOS GNOME은 기본 IBus 기반 기능만
-계속 제공하고, 어느 IBus aggregate를 실행할지는 사용자 unit이 높은 우선순위로
-덮어쓴다. 따라서 기존의 수동 `i18n.inputMethod.ibus.engines` Lisle 항목은 제거할 수
-있다. 기존 Home Manager 설정에서 `("ibus", "lisle")` source를 직접 관리했다면
-중복을 피하도록 그것도 제거한다.
-
-다른 IBus engine도 함께 사용한다면 모두 사용자 aggregate에 넣어야 한다.
-
-```nix
-programs.lisle.ibus.extraEngines = with pkgs.ibus-engines; [ hangul ];
-```
-
-GNOME source를 module에서 관리하지 않으려면
-`programs.lisle.gnome.addToInputSources = false`로 설정한다. 적용 뒤 실행 중인 IBus가
-교체되지 않았다면 한 번 로그아웃한 뒤 다시 로그인한다.
-
-NixOS에서 GNOME 없이 Home Manager module을 사용한다면 사용자 dconf service를 위해
-시스템 설정에 `programs.dconf.enable = true`가 필요하다. 다른 Home Manager 입력기
-(`i18n.inputMethod`)와 Lisle의 사용자 IBus를 동시에 활성화할 수 없다.
-
-기존 NixOS 설정에서 옮길 때는 Home Manager를 먼저 적용하고 다음 값이 사용자 경로를
-가리키는지 확인한다.
-
-```sh
-systemctl --user show org.freedesktop.IBus.session.GNOME.service \
-  --property=FragmentPath
-```
-
-`~/.config/systemd/user/` 아래를 가리키면 NixOS 설정의 Lisle
-`i18n.inputMethod.ibus.engines` 항목을 제거한다. GNOME을 사용한다면 GNOME module이
-기본 IBus 자체를 계속 활성화하므로 Lisle만 담고 있던 `i18n.inputMethod` 블록 전체를
-제거해도 된다.
-
-## NixOS installation
-
-여러 사용자 또는 GDM에도 Lisle을 제공해야 할 때는 NixOS module을 사용한다.
 
 ```nix
 # nixosSystem 안
 modules = [
   inputs.lisle.nixosModules.default
   ./configuration.nix
-  { programs.lisle.enable = true; }
 ];
 ```
 
-`nixosModule` 단수 alias도 제공한다. 이 module은 IBus를 기본 입력기로 활성화하고
-Lisle을 `i18n.inputMethod.ibus.engines`에 추가한다. Home Manager에서도 GNOME source만
-선언하고 싶다면 Home Manager 쪽은 다음처럼 IBus 관리를 끈다.
-
 ```nix
-programs.lisle = {
-  enable = true;
-  ibus.enable = false;
-};
+# configuration.nix
+programs.lisle.enable = true;
 ```
 
-NixOS module에 Lisle을 등록하면서 Home Manager의 `ibus.enable`도 동시에 켜지
-않는다. NixOS GNOME이 제공하는 기본 IBus와 Home Manager의 사용자 Lisle aggregate가
-함께 설치되는 것은 정상이다.
+`nixosModule` 단수 alias도 제공한다. module은 IBus를 기본 입력기로 활성화하고
+Lisle package 하나를 `i18n.inputMethod.ibus.engines`에 기여한다. 다른 engine은
+Lisle 설정이 아니라 같은 NixOS engine 목록에 추가한다.
+
+```nix
+i18n.inputMethod.ibus.engines =
+  with pkgs.ibus-engines; [ hangul mozc ];
+```
+
+GNOME에서 Lisle을 표시하고 선택할지는 사용자별 dconf 선호다. Home Manager에서는
+Lisle input이나 module을 추가하지 않고 기존 source 목록에 tuple만 직접 선언한다.
+
+```nix
+dconf.settings."org/gnome/desktop/input-sources".sources = [
+  (lib.hm.gvariant.mkTuple [ "ibus" "lisle" ])
+  (lib.hm.gvariant.mkTuple [ "xkb" "us" ])
+];
+```
+
+적용은 NixOS, Home Manager 순서로 수행한 뒤 다시 로그인한다.
+
+```sh
+sudo nixos-rebuild switch
+home-manager switch
+# log out, then log in
+
+systemctl --user show org.freedesktop.IBus.session.GNOME.service \
+  --property=FragmentPath
+ibus list-engine
+```
+
+`FragmentPath`는 `/etc/systemd/user/` 아래의 NixOS unit을 가리켜야 하고,
+`ibus list-engine`에는 `lisle`이 보여야 한다. module은 engine package를 시스템
+전체에 제공하지만 각 사용자의 GNOME source 목록은 자동으로 바꾸지 않는다.
 
 ## User-profile installation
 
@@ -145,8 +107,8 @@ systemctl --user restart org.freedesktop.IBus.session.GNOME.service
 
 해당 user unit이 없는 배포판에서는 `ibus restart`를 사용한다. 그래도 목록에
 나타나지 않으면 로그아웃 후 다시 로그인한다. NixOS의 `/etc/systemd/user` unit은
-profile의 unit보다 우선하므로 NixOS에서는 이 절차 대신 위 Home Manager 또는 NixOS
-module을 사용한다. 배포판 IBus와 Nix IBus aggregate를 동시에 실행하지 않는다.
+profile의 unit보다 우선하므로 NixOS에서는 이 절차 대신 위 NixOS module을 사용한다.
+배포판 IBus와 Nix IBus aggregate를 동시에 실행하지 않는다.
 
 일반 Linux의 기존 IBus를 유지하려면 Lisle package를 profile에 설치한 뒤
 `IBUS_COMPONENT_PATH`에 Lisle의 `share/ibus/component`와 배포판의 기존 component
