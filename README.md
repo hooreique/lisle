@@ -26,7 +26,7 @@ libexec/ibus-engine-lisle
 share/ibus/component/lisle.xml
 share/icons/hicolor/scalable/apps/lisle.svg
 share/doc/lisle/{README.md,LICENSE,NOTICE}
-share/doc/lisle/docs/{spec.md,implementation.md}
+share/doc/lisle/docs/{spec.md,implementation.md,nixos-integration.md}
 share/doc/lisle/tests/browser/
 ```
 
@@ -37,6 +37,8 @@ share/doc/lisle/tests/browser/
 NixOS module을 기본 설치 경로로 사용한다. NixOS의 공식
 `i18n.inputMethod.ibus` 통합이 Lisle을 포함한 IBus aggregate, daemon, systemd user
 unit, D-Bus service, dconf 기반과 session 변수를 일관된 경로로 구성한다.
+Home Manager module을 두지 않고 이 책임을 NixOS에 모은 배경은
+[`docs/nixos-integration.md`](docs/nixos-integration.md)에 기록한다.
 
 ```nix
 # flake.nix의 inputs 안

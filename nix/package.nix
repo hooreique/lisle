@@ -65,6 +65,8 @@ rustPlatform.buildRustPackage {
     install -Dm644 ${../docs/spec.md} "$out/share/doc/lisle/docs/spec.md"
     install -Dm644 ${../docs/implementation.md} \
       "$out/share/doc/lisle/docs/implementation.md"
+    install -Dm644 ${../docs/nixos-integration.md} \
+      "$out/share/doc/lisle/docs/nixos-integration.md"
     install -Dm644 ${../tests/browser/README.md} \
       "$out/share/doc/lisle/tests/browser/README.md"
     install -Dm644 ${../tests/browser/index.html} \
@@ -85,6 +87,7 @@ rustPlatform.buildRustPackage {
     test -r "$out/share/doc/lisle/NOTICE"
     test -r "$out/share/doc/lisle/docs/spec.md"
     test -r "$out/share/doc/lisle/docs/implementation.md"
+    test -r "$out/share/doc/lisle/docs/nixos-integration.md"
     test -r "$out/share/doc/lisle/tests/browser/index.html"
 
     component="$out/share/ibus/component/lisle.xml"
