@@ -14,6 +14,8 @@ GNOME 입력 소스를 Lisle로 선택한 뒤 물리 키보드로 다음을 확�
 | Scenario | Input | Expected result |
 |---|---|---|
 | Initial Roman | `e` | `f` |
+| Shifted Roman | hold either Shift, `e`, release | `F`, mode stays Roman |
+| Roman Space/repeat | hold `e`, release, Space | repeated `f`, then one space |
 | Hangul | right Shift tap, `k f x`, Space | `각 ` |
 | Escape | right Shift tap, `k f`, Escape, `e` | `가f` plus one host Escape |
 | Crying vowel | right Shift tap, `i f a m r 2 j t b b`, Space | `망했어ㅜㅜ ` |
@@ -39,6 +41,12 @@ callback이 local 상태를 폐기하는 통합 계약을 확인한다.
 preedit, stuck modifier가 없는지 확인한다. 위 표처럼 조합을 끝내는 경계 입력까지
 마친 뒤에는 최종 text 전체가 정확히 일치해야 하며 부분 문자열만 일치하는 것은
 성공으로 보지 않는다.
+
+Initial Roman의 물리 `e` 한 번에 DOM log가
+`keydown(key=f, code=KeyE) -> beforeinput/input(data=f) -> keyup(key=f, code=KeyE)`
+순서인지 확인한다. Shift 입력은 Shift keydown이 문자 keydown보다 먼저이고 두 keyup이
+모두 있어야 하며, Space와 반복 press도 각각 native key event와 대응하는 input을
+만들어야 한다. Roman 구간에는 composition event가 없어야 한다.
 
 Chromium에서는 결합되지 않는 동일 자모를 반복 입력할 때 commit 뒤의 동일한 새
 preedit을 생략하는 알려진 제한이 있다. 예를 들어 `ㅋㅋㅋ`, `ㅠㅠㅠ` 입력 직후,

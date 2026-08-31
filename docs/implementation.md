@@ -30,14 +30,17 @@ Engine destroy 뒤 D-Bus object와 모든 transient composition state를 제거�
 
 - 변환하지 않는 host event: 필요한 Flush signal을 먼저 보낸 뒤
   `ProcessKeyEvent=false`를 반환한다.
-- Lisle printable 또는 jamo: commit/preedit signal을 보내고 `true`를 반환한다.
+- 로마자 printable과 Space: component의 `us(colemak)` XKB keymap이 해석한 원본
+  press/release event를 `ProcessKeyEvent=false`로 통과시킨다. Commit, preedit,
+  `ForwardKeyEvent` signal을 만들지 않는다.
+- 한글 printable 또는 jamo: commit/preedit signal을 보내고 `true`를 반환한다.
 - Colemak shortcut: component의 `us(colemak)` XKB keymap이 해석한 원본 event를
   `ProcessKeyEvent=false`로 통과시킨다. `ForwardKeyEvent`로 합성하지 않는다.
 - consume한 press의 release도 consume한다.
 - `ForwardKeyEvent`를 보낸 event에 대해 동시에 `false`를 반환하지 않는다.
 
-일반 문자와 한글 배열은 XKB keysym이 아니라 evdev keycode로 결정한다. component의
-Colemak XKB layout은 host shortcut의 underlying 배열에만 사용한다.
+한글 배열은 XKB keysym이 아니라 evdev keycode로 결정한다. 로마자 문자와 host
+shortcut은 component의 Colemak XKB layout이 정한 keysym을 그대로 사용한다.
 
 GNOME Shell 50.4는 IBus의 표준 `layout-variant` property 대신 존재하지 않는 `variant`
 property를 읽는다. 따라서 split descriptor인 `layout=us`,
@@ -46,9 +49,15 @@ property를 읽는다. 따라서 split descriptor인 `layout=us`,
 GNOME/Mutter의 synthetic `ForwardKeyEvent`는 raw modifier state를 보존하지 않으므로
 modifier shortcut 변환에는 사용하지 않는다.
 
+따라서 Caps/Lock 의미도 별도로 합성하지 않고 표준 `us(colemak)` XKB 동작을 따른다.
+이 배열에서 실제 Caps Lock 위치는 `BackSpace`이고, Lisle은 그 event를 일반 host
+Backspace로 통과시킨다.
+
 Shift tap 후보의 press는 결과가 결정될 때까지 보류한다. host에 전달해야 하는
-다른 event가 후보를 취소하면 Shift press를 먼저 replay한다. 단순 shifted text가
-Lisle에서 소비되면 bare Shift event는 replay하지 않는다.
+다른 event가 후보를 취소하면 Shift press를 먼저 replay한다. 로마자 shifted
+printable에서는 이 replay 뒤 현재 문자 press와 두 release를 모두 통과시키므로
+오른쪽 Shift를 문자 modifier로 사용해도 한글 상태를 선택하지 않는다. 한글 shifted
+printable이 Lisle에서 소비되면 bare Shift event는 replay하지 않는다.
 
 ## Preedit lifecycle
 
@@ -58,9 +67,9 @@ input-source transition에서 engine callback 전에 cached COMMIT preedit을 �
 context에 반영한다. 이 검증 경로에서 context transition의 commit은 Mutter가
 담당하며, Lisle은 callback을 받은 뒤 local state만 비운다.
 
-명시적인 printable 경계에서 Flush할 때는 빈 CLEAR preedit을 먼저 보내 조합 범위를
-닫고, visible text와 경계 문자를 하나의 `CommitText`로 보낸다. Mutter는 같은 키
-처리에서 발생한 IM event를 하나의 text-input-v3 `done`으로 묶는다. 이 배치 안의
+한글 상태의 명시적인 printable 경계에서 Flush할 때는 빈 CLEAR preedit을 먼저 보내
+조합 범위를 닫고, visible text와 경계 문자를 하나의 `CommitText`로 보낸다. Mutter는
+같은 키 처리에서 발생한 IM event를 하나의 text-input-v3 `done`으로 묶는다. 이 배치 안의
 여러 `commit_string`은 누적되지 않으므로 `CommitText("녕")`, `CommitText(" ")`처럼
 나누면 Chromium에는 마지막 공백만 남는다. 새 조합이 즉시 이어지는 음절 경계는
 별도 키 처리이므로 기존 text를 commit한 뒤 새 preedit을 보낸다.
