@@ -6,7 +6,7 @@ use std::ffi::OsStr;
 use xkbcommon::xkb::{self, compose};
 
 use crate::composition::{Composer, Input};
-use crate::key::{colemak_output, hangul_input, representative_key};
+use crate::key::{hangul_input, representative_key};
 
 pub const SHIFT_MASK: u32 = 1;
 pub const LOCK_MASK: u32 = 1 << 1;
@@ -267,14 +267,7 @@ impl LisleEngine {
         let shifted = event.state & SHIFT_MASK != 0;
 
         match self.state {
-            InputState::Roman => match colemak_output(key, shifted) {
-                Some(output) => (
-                    true,
-                    vec![Action::Commit(output.to_string())],
-                    ReleaseRoute::Consume,
-                ),
-                None => (false, Vec::new(), ReleaseRoute::PassThrough),
-            },
+            InputState::Roman => (false, Vec::new(), ReleaseRoute::PassThrough),
             InputState::Hangul => match hangul_input(key, shifted) {
                 Some(Input::Jamo(jamo)) => {
                     let transition = self.composer.push(jamo);
@@ -721,12 +714,50 @@ mod tests {
     }
 
     #[test]
-    fn roman_printable_uses_colemak_and_shortcut_passes_through() {
+    fn either_shift_used_for_roman_text_is_replayed_before_passthrough() {
+        for (shift, keycode) in [(keysym::SHIFT_L, 42), (keysym::SHIFT_R, 54)] {
+            let mut engine = LisleEngine::default();
+            let shift_press = event(shift, keycode, SHIFT_MASK);
+            assert_eq!(engine.process(shift_press), (true, Vec::new()));
+            assert_eq!(
+                engine.process(event(b'F' as u32, 18, SHIFT_MASK)),
+                (false, vec![forward(shift_press)])
+            );
+            assert_eq!(
+                engine.process(event(b'F' as u32, 18, SHIFT_MASK | RELEASE_MASK)),
+                (false, Vec::new())
+            );
+            assert_eq!(
+                engine.process(event(shift, keycode, SHIFT_MASK | RELEASE_MASK)),
+                (false, Vec::new())
+            );
+            assert_eq!(engine.state(), InputState::Roman);
+        }
+    }
+
+    #[test]
+    fn roman_printable_uses_xkb_mapped_press_and_release() {
         let mut engine = LisleEngine::default();
-        assert_eq!(
-            engine.process(event(b'e' as u32, 18, 0)),
-            (true, vec![Action::Commit("f".into())])
-        );
+        for (keyval, keycode, state) in [
+            (b'f' as u32, 18, 0),
+            (b'f' as u32, 18, RELEASE_MASK),
+            (b';' as u32, 25, 0),
+            (b';' as u32, 25, RELEASE_MASK),
+            (b' ' as u32, 57, 0),
+            (b' ' as u32, 57, RELEASE_MASK),
+            (b'F' as u32, 18, SHIFT_MASK | LOCK_MASK | MOD2_MASK),
+            (
+                b'F' as u32,
+                18,
+                SHIFT_MASK | LOCK_MASK | MOD2_MASK | RELEASE_MASK,
+            ),
+        ] {
+            assert_eq!(
+                engine.process(event(keyval, keycode, state)),
+                (false, Vec::new())
+            );
+        }
+
         for modifier in [
             CONTROL_MASK,
             MOD1_MASK,
@@ -750,8 +781,8 @@ mod tests {
     fn num_lock_is_ignored_for_text_and_shift_selection() {
         let mut engine = LisleEngine::default();
         assert_eq!(
-            engine.process(event(b'e' as u32, 18, MOD2_MASK)),
-            (true, vec![Action::Commit("f".into())])
+            engine.process(event(b'f' as u32, 18, MOD2_MASK)),
+            (false, Vec::new())
         );
         engine.process(event(keysym::SHIFT_R, 54, SHIFT_MASK | MOD2_MASK));
         engine.process(event(
@@ -783,8 +814,8 @@ mod tests {
             (false, Vec::new())
         );
         assert_eq!(
-            engine.process(event(b'e' as u32, 18, 0)),
-            (true, vec![Action::Commit("f".into())])
+            engine.process(event(b'f' as u32, 18, 0)),
+            (false, Vec::new())
         );
         assert_eq!(
             engine.process(event(b'e' as u32, 18, RELEASE_MASK)),
@@ -935,8 +966,8 @@ mod tests {
             assert_eq!(engine.process(input), (false, Vec::new()));
         }
         assert_eq!(
-            engine.process(event(b'e' as u32, 18, 0)),
-            (true, vec![Action::Commit("f".into())])
+            engine.process(event(b'f' as u32, 18, 0)),
+            (false, Vec::new())
         );
 
         let mut engine = LisleEngine::default();
@@ -951,8 +982,8 @@ mod tests {
             assert_eq!(engine.process(input), (false, Vec::new()));
         }
         assert_eq!(
-            engine.process(event(b'e' as u32, 18, 0)),
-            (true, vec![Action::Commit("f".into())])
+            engine.process(event(b'f' as u32, 18, 0)),
+            (false, Vec::new())
         );
     }
 
@@ -972,8 +1003,8 @@ mod tests {
             assert_eq!(engine.process(input), (false, Vec::new()));
         }
         assert_eq!(
-            engine.process(event(b'e' as u32, 18, 0)),
-            (true, vec![Action::Commit("f".into())])
+            engine.process(event(b'f' as u32, 18, 0)),
+            (false, Vec::new())
         );
     }
 

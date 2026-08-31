@@ -35,7 +35,7 @@ Lisle은 다음을 책임진다.
 - 물리 글쇠를 대표 글쇠로 식별한다.
 - 왼쪽과 오른쪽 Shift를 구분하여 입력 상태를 선택한다.
 - 한글 조합의 preedit, 확정, Reset에 따른 local Clear와 편집 경계를 관리한다.
-- 로마자 출력과 한글 상태의 단축키를 Colemak 기준으로 해석한다.
+- 로마자 출력과 한글 상태의 단축키에 적용할 Colemak XKB 계약을 선언한다.
 - 처리하지 않는 키와 단축키를 호스트 프로그램에 정확히 한 번 전달한다.
 - 포커스, 활성화, 비활성화와 입력 소스 전환에서 조합 생명주기를 지킨다.
 
@@ -69,6 +69,8 @@ Lisle은 다음을 책임진다.
 - `underlying roman layout`은 번역하지 않고 이 이름으로 쓴다.
 - Lisle의 `underlying roman layout`은 Colemak이다.
 - 로마자 상태의 printable 출력과 한글 상태의 로마자 단축키 해석에 사용한다.
+- 로마자 상태에서는 Lisle이 printable scalar를 다시 만들지 않고 이 XKB 배열이
+  해석한 원본 key event를 호스트에 통과시킨다.
 - 한글 자모 배정과 한글 상태의 문장부호 출력에는 사용하지 않는다.
 - 대표 글쇠와 underlying 글쇠는 다를 수 있다. 대표 글쇠 `j k f`는 Colemak
   underlying 글쇠로 `n e t`이다.
@@ -105,8 +107,9 @@ Lisle은 다음을 책임진다.
 5. 활성 조합을 Flush한 뒤에는 빈 preedit가 되어야 한다.
 6. 알 수 없는 키, 지원하지 않는 키와 입력기가 해석할 필요가 없는 키는 텍스트
    손실 없이 호스트로 전달해야 한다.
-7. 키 press와 release를 모두 받더라도 printable text는 일반적으로 press에서만
-   한 번 처리해야 한다. release가 같은 문자를 다시 만들어서는 안 된다.
+7. 키 press와 release를 모두 받더라도 한글 printable text는 press에서만 한 번
+   처리해야 한다. 로마자 printable은 press와 release를 모두 호스트에 전달하며,
+   release가 별도 문자를 만들어서는 안 된다.
 8. 운영체제의 키 반복은 반복된 press 입력으로 처리하되 Shift 단일 탭으로
    오인해서는 안 된다.
 
@@ -138,8 +141,9 @@ Lisle은 다음을 책임진다.
 - 키 반복이 발생한 Shift press는 단일 탭 후보를 취소한다.
 - 취소된 후보는 해당 Shift를 놓을 때 상태를 바꾸지 않는다.
 - Shift와 printable 글쇠의 조합은 현재 상태의 윗글쇠 입력이며 상태 선택이 아니다.
-- Shift 단일 탭은 Shift 문자나 다른 텍스트를 출력하지 않으며 호스트에 별도
-  키 입력으로 전달하지 않는다.
+- 유효한 Shift 단일 탭은 Shift 문자나 다른 텍스트를 출력하지 않으며 호스트에 별도
+  키 입력으로 전달하지 않는다. printable로 취소된 후보는 문자 event보다 먼저
+  Shift press를 호스트에 전달하고, 뒤따르는 release도 전달한다.
 - 상태가 바뀔 때 활성 한글 조합이 있으면 먼저 Flush하고 새 상태를 적용한다.
 
 ### 5.3 Escape
@@ -171,11 +175,14 @@ Lisle은 다음을 책임진다.
 윗글쇠:   Z X C V B K M < > ?
 ```
 
-- printable 입력은 변환된 Unicode scalar를 Commit한다.
-- Caps Lock은 Lisle의 로마자 대소문자를 바꾸지 않는다. 대문자와 shifted
-  symbol은 실제 Shift가 함께 눌린 경우에만 출력한다.
-- 물리 Space는 U+0020을 Commit한다. 대표 글쇠로 식별할 수 없는 printable
-  whitespace는 문자 값만 보고 재해석하지 않고 호스트에 전달한다.
+- printable 입력은 `us(colemak)` XKB가 위 표대로 해석한 원본 press와 release를
+  호스트에 통과시킨다. Lisle은 Unicode scalar를 Commit하거나 synthetic printable
+  event를 만들지 않는다.
+- Shift와 Caps/Lock의 문자 의미는 표준 `us(colemak)` XKB 동작을 따른다. 실제 Caps
+  Lock 위치는 이 배열에서 `BackSpace`이며 Lisle은 해당 원본 event를 Backspace로
+  통과시킨다.
+- 물리 Space의 XKB-mapped press와 release를 통과시켜 호스트가 U+0020을 입력하게
+  한다. 대표 글쇠로 식별할 수 없는 printable whitespace도 재해석하지 않는다.
 - 물리 Tab과 Enter/Return은 printable 출력으로 변환하지 않고 호스트 동작
   키로 처리한다.
 - dead key 또는 compose 기능처럼 Lisle이 정의하지 않은 문자 조합은 Lisle이
@@ -598,11 +605,12 @@ Lisle 재선택                           -> 로마자, preedit 없음
 1. 해당 입력이 현재 활성 조합의 명시된 조합 입력인가? 그렇다면 조합에서 소비한다.
 2. Backspace인가? 활성 조합이 있으면 입력 스택을 한 단계 되돌리고, 없으면 Forward한다.
 3. Reset callback인가? local 조합과 Shift 후보를 Clear하고 입력 상태를 보존한다.
-4. 대표 글쇠로 식별한 printable text인가? 활성 조합을 Flush한 뒤 해당 text를
-   Commit한다.
-5. 단축키, 탐색 키 또는 호스트 동작인가? 활성 조합을 Flush한 뒤 Forward한다.
-6. 편집 문맥 종료 callback인가? 텍스트를 재전송하지 않고 local 상태를 폐기한다.
-7. 어느 범주인지 확정할 수 없는가? 활성 조합을 안전하게 Flush한 뒤 원래 입력을
+4. 로마자 상태의 printable인가? `us(colemak)` XKB-mapped 원본 event를 Forward한다.
+5. 한글 상태에서 대표 글쇠로 식별한 printable text인가? 활성 조합을 Flush한 뒤
+   해당 text를 Commit한다.
+6. 단축키, 탐색 키 또는 호스트 동작인가? 활성 조합을 Flush한 뒤 Forward한다.
+7. 편집 문맥 종료 callback인가? 텍스트를 재전송하지 않고 local 상태를 폐기한다.
+8. 어느 범주인지 확정할 수 없는가? 활성 조합을 안전하게 Flush한 뒤 원래 입력을
    정확히 한 번 Forward한다.
 
 이 규칙으로도 둘 이상의 결과가 가능하면 공통 불변조건의 우선순위를 적용한다.

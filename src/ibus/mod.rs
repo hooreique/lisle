@@ -500,22 +500,26 @@ mod tests {
             .receive_signal("CommitText")
             .await
             .expect("commit signal stream");
-        let handled: bool = engine
-            .call("ProcessKeyEvent", &(b'e' as u32, 18_u32, 0_u32))
-            .await
-            .expect("Roman key event");
-        assert!(handled);
-        let commit = tokio::time::timeout(std::time::Duration::from_secs(1), commits.next())
-            .await
-            .expect("commit signal timeout")
-            .expect("commit signal");
-        let value: OwnedValue = commit.body().deserialize().expect("IBusText signal value");
-        assert_eq!(value.value_signature().to_string(), "(sa{sv}sv)");
-
         let mut preedits = engine
             .receive_signal("UpdatePreeditText")
             .await
             .expect("preedit signal stream");
+        let mut forwards = engine
+            .receive_signal("ForwardKeyEvent")
+            .await
+            .expect("forward signal stream");
+        for state in [0_u32, crate::engine::RELEASE_MASK] {
+            let handled: bool = engine
+                .call("ProcessKeyEvent", &(b'f' as u32, 18_u32, state))
+                .await
+                .expect("Roman key event");
+            assert!(!handled);
+        }
+        let quiet = std::time::Duration::from_millis(100);
+        assert!(tokio::time::timeout(quiet, commits.next()).await.is_err());
+        assert!(tokio::time::timeout(quiet, preedits.next()).await.is_err());
+        assert!(tokio::time::timeout(quiet, forwards.next()).await.is_err());
+
         for (keyval, keycode, state) in [
             (
                 crate::engine::keysym::SHIFT_R,

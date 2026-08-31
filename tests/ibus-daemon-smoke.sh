@@ -87,10 +87,29 @@ timeout 30s dbus-run-session --config-file="$DBUS_SESSION_CONF" -- bash -euo pip
       --dest org.freedesktop.IBus.Lisle \
       --object-path "$engine_path" \
       --method org.freedesktop.IBus.Engine.ProcessKeyEvent \
-      $((0x65)) 18 0
+      $((0x66)) 18 0
   )"
-  if [[ "$result" != "(true,)" ]]; then
-    echo "activated Lisle did not handle the Roman key: $result" >&2
+  if [[ "$result" != "(false,)" ]]; then
+    echo "activated Lisle did not pass through the Roman key: $result" >&2
     exit 1
   fi
+
+  for event in \
+    "$((0xffe2)) 54 1" \
+    "$((0xffe2)) 54 $((1 | 1 << 30))" \
+    "$((0x6b)) 37 0"
+  do
+    result="$(
+      gdbus call \
+        --address "$address" \
+        --dest org.freedesktop.IBus.Lisle \
+        --object-path "$engine_path" \
+        --method org.freedesktop.IBus.Engine.ProcessKeyEvent \
+        $event
+    )"
+    if [[ "$result" != "(true,)" ]]; then
+      echo "activated Lisle did not handle the Hangul event: $result" >&2
+      exit 1
+    fi
+  done
 '

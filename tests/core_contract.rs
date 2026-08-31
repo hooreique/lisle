@@ -350,7 +350,31 @@ fn ending_a_context_discards_state_and_starts_the_next_context_in_roman() {
     engine.end_context();
     assert_eq!(engine.state(), InputState::Roman);
     assert_eq!(
-        engine.process(KeyEvent::new(b'e' as u32, 18, 0)),
-        (true, vec![Action::Commit("f".into())])
+        engine.process(KeyEvent::new(b'f' as u32, 18, 0)),
+        (false, Vec::new())
     );
+}
+
+#[test]
+fn roman_events_are_xkb_mapped_and_pass_through_without_text_actions() {
+    let mut engine = LisleEngine::default();
+    for input in [
+        KeyEvent::new(b'f' as u32, 18, 0),
+        KeyEvent::new(b'f' as u32, 18, 0),
+        KeyEvent::new(b'f' as u32, 18, RELEASE_MASK),
+        KeyEvent::new(b';' as u32, 25, 0),
+        KeyEvent::new(b';' as u32, 25, RELEASE_MASK),
+        KeyEvent::new(b' ' as u32, 57, 0),
+        KeyEvent::new(b' ' as u32, 57, RELEASE_MASK),
+        KeyEvent::new(keysym::BACK_SPACE, 58, lisle::engine::LOCK_MASK),
+        KeyEvent::new(
+            keysym::BACK_SPACE,
+            58,
+            lisle::engine::LOCK_MASK | RELEASE_MASK,
+        ),
+        KeyEvent::new(b'f' as u32, 18, lisle::engine::MOD2_MASK),
+        KeyEvent::new(b'f' as u32, 18, lisle::engine::MOD2_MASK | RELEASE_MASK),
+    ] {
+        assert_eq!(engine.process(input), (false, Vec::new()), "{input:?}");
+    }
 }
